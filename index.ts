@@ -613,13 +613,26 @@ const plugin = {
     let cleanupTimer: ReturnType<typeof setInterval> | null = null;
     const grpcPort = config.server.port + 1;
 
-    api.registerGatewayMethod("a2a.metrics", ({ respond }) => {
+    // OpenClaw only injects api.registerGatewayMethod when the manifest declares
+    // `contracts.gatewayMethodDispatch`. Guard against hosts that don't expose it
+    // so register() doesn't throw before the HTTP service starts; fall back to a
+    // no-op and warn once (graceful degradation, consistent with the
+    // registerService / registerTool guards below).
+    const registerGatewayMethod: NonNullable<typeof api.registerGatewayMethod> =
+      api.registerGatewayMethod?.bind(api) ?? (() => {});
+    if (!api.registerGatewayMethod) {
+      api.logger.warn(
+        "a2a-gateway: registerGatewayMethod unavailable; a2a.* gateway RPC methods not registered (declare contracts.gatewayMethodDispatch in openclaw.plugin.json)"
+      );
+    }
+
+    registerGatewayMethod("a2a.metrics", ({ respond }) => {
       respond(true, {
         metrics: telemetry.snapshot(),
       });
     });
 
-    api.registerGatewayMethod("a2a.audit", ({ params, respond }) => {
+    registerGatewayMethod("a2a.audit", ({ params, respond }) => {
       const payload = asObject(params);
       const count = Math.min(Math.max(1, asNumber(payload.count, 50)), 500);
       auditLogger
@@ -628,7 +641,7 @@ const plugin = {
         .catch((error) => respond(false, { error: String(error?.message || error) }));
     });
 
-    api.registerGatewayMethod("a2a.pushNotification.register", ({ params, respond }) => {
+    registerGatewayMethod("a2a.pushNotification.register", ({ params, respond }) => {
       const payload = asObject(params);
       const taskId = asString(payload.taskId, "");
       const url = asString(payload.url, "");
@@ -654,7 +667,7 @@ const plugin = {
       });
     });
 
-    api.registerGatewayMethod("a2a.pushNotification.unregister", ({ params, respond }) => {
+    registerGatewayMethod("a2a.pushNotification.unregister", ({ params, respond }) => {
       const payload = asObject(params);
       const taskId = asString(payload.taskId, "");
       if (!taskId) {
@@ -666,7 +679,7 @@ const plugin = {
       respond(true, { taskId, removed: existed });
     });
 
-    api.registerGatewayMethod("a2a.send", ({ params, respond }) => {
+    registerGatewayMethod("a2a.send", ({ params, respond }) => {
       const payload = asObject(params);
       let peerName = asString(payload.peer || payload.name, "");
       const message = asObject(payload.message || payload.payload);
