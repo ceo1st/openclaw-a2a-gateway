@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.5.1] - 2026-07-04
+
+### Fixed
+
+- **Republished with freshly built `dist/`** — the 1.5.0 npm tarball shipped stale compiled output under `dist/src/` (still gateway protocol v3), so installs on OpenClaw 2026.6.x failed the ws handshake with `ws protocol mismatch: min=3 max=3 expected=4` even though the source already declared protocol v4 (#79)
+
+### Added
+
+- `build` script and `prepack` hook — `dist/` is now rebuilt automatically before every `npm pack` / `npm publish`, so published artifacts can no longer go stale relative to `src/`
+
 ## [1.5.0] - 2026-07-04
 
 ### Added
